@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    # stdin_open: true
+    # tty: true
+
+  db:
+    image: postgres:17-alpine
+    volumes:
+      - postgres_data:/var/lib/postgres/data/
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=webcrawler
+      - POSTGRES_PASSWORD=webcrawler
+      - POSTGRES_DB=webcrawler_db
+
+volumes:
+  postgres_data:
