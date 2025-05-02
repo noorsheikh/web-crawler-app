@@ -1,7 +1,22 @@
+"""
+Unit tests for crawler_service.py
+
+This module contains pytest-based unit tests for the web crawler defined in
+crawler_service.py. The tests cover edge cases including:
+- Successful crawling with links
+- Handling non-200 status codes
+- Exception handling on network errors
+- Depth limiting
+- Deduplication of visited URLs
+- Domain and file extension filtering
+
+Test methods use mocking to simulate HTTP responses with varying HTML content.
+"""
+
+from unittest.mock import patch, Mock
 import pytest
 import requests
-from unittest.mock import patch, Mock
-from crawler.services.crawler_service import WebCrawler, CrawlerConfig, CrawlStats
+from crawler.services.crawler_service import WebCrawler, CrawlerConfig
 
 # Mock HTML content
 HTML_PAGE = """
@@ -15,20 +30,32 @@ HTML_PAGE = """
 """
 
 
-@pytest.fixture
-def crawler_config():
+@pytest.fixture(name="crawler_config")
+def fixture_crawler_config():
+    """Returns a configured CrawlerConfig instance with:
+    - max_depth = 1
+    - allowed_domains = ['example.com']
+    - blacklist = ['.jpq=g', '.png']
+    """
+
     return CrawlerConfig(
         max_depth=1, domains=["example.com"], blacklist=[".jpq=g", ".png"]
     )
 
 
-@pytest.fixture
-def crawler(crawler_config):
+@pytest.fixture(name="crawler")
+def fixture_crawler(crawler_config):
+    """Returns a WebCrawler instance initialized with the crawler_config fixture."""
+
     return WebCrawler(config=crawler_config)
 
 
 @patch("requests.get")
 def test_successful_crawl(mock_get, crawler):
+    """Tests successful crawl of one page and two child links.
+    Validates total URL count, domain aggregation, status codes, and title extraction.
+    """
+
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.content = HTML_PAGE.encode("utf-8")
@@ -46,6 +73,10 @@ def test_successful_crawl(mock_get, crawler):
 
 @patch("requests.get")
 def test_non_200_status(mock_get, crawler):
+    """Simulates a 404 HTTP response.
+    Verifies that errors are tracked and status code is recorded.
+    """
+
     mock_response = Mock()
     mock_response.status_code = 404
     mock_response.content = b""
@@ -61,6 +92,10 @@ def test_non_200_status(mock_get, crawler):
 
 @patch("requests.get")
 def test_exception_handling(mock_get, crawler):
+    """Simulates a network error using side_effect.
+    Ensures errors are recorded and title is set to 'ERROR'.
+    """
+
     mock_get.side_effect = requests.exceptions.RequestException()
 
     stats = crawler.crawl("http://example.com")
@@ -81,6 +116,8 @@ def test_exception_handling(mock_get, crawler):
     ],
 )
 def test_blacklist(url, expected):
+    """Tests the blacklist logic in CrawlerConfig using parameterized extensions."""
+
     config = CrawlerConfig(blacklist=[".jpg", ".png"])
     assert config.is_blacklisted(url) == expected
 
@@ -94,12 +131,16 @@ def test_blacklist(url, expected):
     ],
 )
 def test_is_allowed_domain(url, domains, expected):
+    """Tests domain filtering logic based on allowed domain list."""
+
     config = CrawlerConfig(domains=domains)
     assert config.is_allowed_domain(url) == expected
 
 
 @patch("requests.get")
 def test_max_depth_not_exceeded(mock_get, crawler):
+    """Verifies that URLs beyond the max_depth are not crawled."""
+
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.content = HTML_PAGE.encode("utf-8")
@@ -116,14 +157,16 @@ def test_max_depth_not_exceeded(mock_get, crawler):
 
 @patch("requests.get")
 def test_deduplication(mock_get, crawler):
+    """Ensures that the same URL is not crawled more than once."""
+
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.content = HTML_PAGE.encode("utf-8")
     mock_response.text = HTML_PAGE
     mock_get.return_value = mock_response
 
-    stats = crawler.crawl("http://example.com")
-    stats2 = crawler.crawl("http://example.com")  # Should not crawl again
+    crawler.crawl("http://example.com")
+    crawler.crawl("http://example.com")  # Should not crawl again
 
     # Still only 1 URL should be in stats
     assert len(crawler.visited) == 3

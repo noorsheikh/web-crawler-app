@@ -16,8 +16,8 @@ Including another URLconf
 """
 
 from django.urls import path, include
-from .views import job_view
 from rest_framework import routers
+from .views import job_view
 
 router = routers.DefaultRouter()
 router.register(r"test", job_view.CrawlerJobViewSet, basename="test")
