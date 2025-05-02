@@ -17,12 +17,17 @@ Including another URLconf
 
 from django.urls import path, include
 from rest_framework import routers
-from .views import job_view
+from .views import crawler_view
+from .channels.crawler_consumers import CrawlerConsumer
 
 router = routers.DefaultRouter()
-router.register(r"test", job_view.CrawlerJobViewSet, basename="test")
+router.register(r"crawler", crawler_view.CrawlerViewSet, basename="crawler")
 
 
 urlpatterns = [
     path("api/", include(router.urls)),
+]
+
+websocket_urlpatterns = [
+    path("ws/crawl/", CrawlerConsumer.as_asgi(), name="broadcast-crawl"),
 ]

@@ -29,6 +29,8 @@ from urllib.parse import urlparse, urljoin
 from collections import deque, defaultdict
 from bs4 import BeautifulSoup
 import requests
+import asyncio
+from channels.layers import get_channel_layer
 
 
 class CrawlerConfig:
@@ -193,6 +195,9 @@ class WebCrawler:
                     current_url, response.status_code, content_length, title
                 )
 
+                # Live broadcast stats to client.
+                asyncio.run(self.broadcast_stats())
+
                 if depth < self.config.max_depth and response.status_code == 200:
                     for link in soup.find_all("a", href=True):
                         href = urljoin(current_url, link["href"])
@@ -200,5 +205,34 @@ class WebCrawler:
                             queue.append((href, depth + 1))
             except Exception:
                 self.stats.record(current_url, 0, 0, "ERROR")
+                # Live broadcast stats to client.
+                asyncio.run(self.broadcast_stats)
 
         return self.stats
+
+    async def broadcast_stats(self):
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        await channel_layer.group_send(
+            "crawl_group",
+            {
+                "type": "send_crawl_stats",
+                "stats_data": {
+                    "total_urls": self.stats.total_urls,
+                    "errors": self.stats.errors,
+                    "status_counts": dict(self.stats.status_code_counts),
+                    "domain_counts": dict(self.stats.domain_counts),
+                },
+            },
+        )
+
+if __name__ == "__main__":
+    config = CrawlerConfig(2, ['https://www.specular.ai/', 'https://sst.dev/'], ['.jpeg', '.css'])
+    crawler = WebCrawler(config)
+    stats = crawler.crawl("https://www.specular.ai/")
+    print(stats.domain_counts)
+    print(stats.errors)
+    print(stats.status_code_counts)
+    print(stats.results)

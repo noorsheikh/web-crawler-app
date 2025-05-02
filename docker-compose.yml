@@ -1,15 +1,24 @@
 services:
   backend:
     build: ./backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: daphne -b 0.0.0.0 -p 8000 crawler.asgi:application
+    environment:
+      - DJANGO_SETTINGS_MODULE=crawler.settings
     volumes:
       - ./backend:/app
     ports:
       - 8000:8000
     depends_on:
       - db
+      - redis
     # stdin_open: true
     # tty: true
+
+  redis:
+    image: redis:8.0-rc1-alpine
+    ports:
+      - 6379:6379
+    restart: unless-stopped
 
   db:
     image: postgres:17-alpine
