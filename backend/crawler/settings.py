@@ -40,7 +40,10 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
     "rest_framework",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -50,7 +53,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "crawler.urls"
 
-WSGI_APPLICATION = "crawler.wsgi.application"
+# WSGI_APPLICATION = "crawler.wsgi.application"
+
+ASGI_APPLICATION = "crawler.asgi.application"
 
 
 # Database
@@ -65,6 +70,23 @@ DATABASES = {
         "HOST": env("DB_HOST"),
         "PORT": env("DB_PORT"),
     }
+}
+
+# Redis backend
+CHANNEL_LAYERS = {
+  "default": {
+    "BACKEND": "channels_redis.core.RedisChannelLayer",
+    "CONFIG": {
+      "hosts": [(env('REDIS_HOST'), env('REDIS_PORT'))],
+    },
+  },
+}
+
+# REST Framework
+REST_FRAMEWORK = {
+  "DEFAULT_RENDERER_CLASSES": [
+    'rest_framework.renderers.JSONRenderer',
+  ],
 }
 
 
