@@ -1,4 +1,4 @@
-FROM python:3.14-rc-alpine3.21
+FROM python:3.13-alpine
 
 # Install necessary dependencies
 RUN apk add --no-cache bash build-base libffi-dev openssl-dev postgresql-dev gcc musl-dev libffi-dev python3-dev
