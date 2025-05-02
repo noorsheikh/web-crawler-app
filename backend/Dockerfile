@@ -6,6 +6,8 @@ RUN apk add --no-cache bash build-base libffi-dev openssl-dev postgresql-dev gcc
 # Set working directory
 WORKDIR /app
 
+ENV PYTHONPATH="/app:${PYTHONPATH:-}"
+
 # Create virtual environment
 ENV VENV_PATH=/opt/venv
 RUN python -m venv $VENV_PATH
