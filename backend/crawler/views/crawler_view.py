@@ -13,6 +13,7 @@ import logging
 from threading import Thread
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.request import Request
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
@@ -30,7 +31,7 @@ class CrawlerViewSet(ViewSet):
     """
 
     @action(detail=False, methods=["post"], url_path="start")
-    def start(self, request):
+    def start(self, request: Request) -> Response:
         """Handle POST requests to start a web crawl in the background.
 
         Expects a JSON body with the following keys:
