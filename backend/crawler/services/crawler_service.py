@@ -265,7 +265,7 @@ class WebCrawler:
                         if href.startswith("http"):
                             queue.append((href, depth + 1))
                             logger.debug(f"Enqueued link: {href} at depth {depth + 1}")
-            except Exception:
+            except Exception as e:
                 logger.exception(f"Error fetching URL: {current_url} - {str(e)}")
                 self.stats.record(current_url, 0, 0, "ERROR")
                 # Live broadcast stats to client.

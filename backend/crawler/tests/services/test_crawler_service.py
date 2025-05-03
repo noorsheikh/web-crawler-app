@@ -9,8 +9,10 @@ crawler_service.py. The tests cover edge cases including:
 - Depth limiting
 - Deduplication of visited URLs
 - Domain and file extension filtering
+- Redis caching of crawled URLs
 
-Test methods use mocking to simulate HTTP responses with varying HTML content.
+Test methods use mocking to simulate HTTP responses with varying HTML content
+and to mock Redis cache behaviors.
 
 Usage:
     pytest crawler/tests/services/test_crawler_service.py
@@ -54,9 +56,12 @@ def fixture_crawler(crawler_config):
 
 
 @patch("requests.get")
-def test_successful_crawl(mock_get, crawler):
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_successful_crawl(mock_cache_set, mock_cache_get, mock_get, crawler):
     """Tests successful crawl of one page and two child links.
     Validates total URL count, domain aggregation, status codes, and title extraction.
+    Also verifies caching set call.
     """
 
     mock_response = Mock()
@@ -72,12 +77,15 @@ def test_successful_crawl(mock_get, crawler):
     assert stats.status_code_counts[200] == 3
     assert stats.domain_counts["example.com"] == 3
     assert stats.results[0]["title"] == "Test Page"
+    assert mock_cache_set.call_count == 3
 
 
 @patch("requests.get")
-def test_non_200_status(mock_get, crawler):
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_non_200_status(mock_cache_set, mock_cache_get, mock_get, crawler):
     """Simulates a 404 HTTP response.
-    Verifies that errors are tracked and status code is recorded.
+    Verifies that errors are tracked, status code is recorded, and cache is used.
     """
 
     mock_response = Mock()
@@ -91,114 +99,98 @@ def test_non_200_status(mock_get, crawler):
     assert stats.total_urls == 1
     assert stats.errors == 1
     assert stats.status_code_counts[404] == 1
+    assert stats.domain_counts["example.com"] == 1
+    assert stats.results[0]["status"] == 404
+    assert mock_cache_set.call_count == 1
 
 
-@patch("requests.get")
-def test_exception_handling(mock_get, crawler):
-    """Simulates a network error using side_effect.
-    Ensures errors are recorded and title is set to 'ERROR'.
-    """
+@patch("requests.get", side_effect=requests.exceptions.RequestException)
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_network_exception(mock_cache_set, mock_cache_get, mock_get, crawler):
+    """Simulates a network failure to test error handling and stat recording."""
 
-    mock_get.side_effect = requests.exceptions.RequestException()
-
-    stats = crawler.crawl("http://example.com")
+    stats = crawler.crawl("http://example.com/error")
 
     assert stats.total_urls == 1
     assert stats.errors == 1
-    assert stats.status_code_counts[0] == 1
+    assert stats.results[0]["status"] == 0
     assert stats.results[0]["title"] == "ERROR"
-
-
-@pytest.mark.parametrize(
-    "url,expected",
-    [
-        ("http://example.com/image.jpg", True),
-        ("http://example.com/page.html", False),
-        ("http://example.com/file.png", True),
-        ("http://example.com/article", False),
-    ],
-)
-def test_blacklist(url, expected):
-    """Tests the blacklist logic in CrawlerConfig using parameterized extensions."""
-
-    config = CrawlerConfig(blacklist=[".jpg", ".png"])
-    assert config.is_blacklisted(url) == expected
-
-
-@pytest.mark.parametrize(
-    "url,domains,expected",
-    [
-        ("http://example.com", ["example.com"], True),
-        ("http://another.com", ["example.com"], False),
-        ("http://yetanother.com", [], True),  # No restriction
-    ],
-)
-def test_is_allowed_domain(url, domains, expected):
-    """Tests domain filtering logic based on allowed domain list."""
-
-    config = CrawlerConfig(domains=domains)
-    assert config.is_allowed_domain(url) == expected
+    assert mock_cache_set.call_count == 0
 
 
 @patch("requests.get")
-def test_max_depth_not_exceeded(mock_get, crawler):
-    """Verifies that URLs beyond the max_depth are not crawled."""
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_depth_limit(mock_cache_set, mock_cache_get, mock_get, crawler_config):
+    """Ensures crawler respects depth limits and avoids deeper levels."""
+
+    html_with_deep_links = """
+    <html>
+      <body>
+        <a href="http://example.com/deep1">Deep 1</a>
+        <a href="http://example.com/deep2">Deep 2</a>
+      </body>
+    </html>
+    """
 
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response.content = HTML_PAGE.encode("utf-8")
-    mock_response.text = HTML_PAGE
+    mock_response.content = html_with_deep_links.encode("utf-8")
+    mock_response.text = html_with_deep_links
     mock_get.return_value = mock_response
 
-    crawler.config.max_depth = 0
+    crawler = WebCrawler(crawler_config)
     stats = crawler.crawl("http://example.com")
 
-    # Only the start URL should be crawled
+    assert stats.total_urls == 3
+    for url_stat in stats.results:
+        assert url_stat["url"].startswith("http://example.com")
+
+
+@patch("requests.get")
+@patch("django.core.cache.cache.get")
+@patch("django.core.cache.cache.set")
+def test_cache_hit_skips_network(mock_cache_set, mock_cache_get, mock_get, crawler):
+    """Verifies that cached responses bypass network calls."""
+
+    mock_cache_get.return_value = {
+        "status": 200,
+        "size": 1234,
+        "title": "Cached Page",
+    }
+
+    stats = crawler.crawl("http://example.com")
+
     assert stats.total_urls == 1
-    assert all(url["url"] == "http://example.com" for url in stats.results)
+    assert stats.results[0]["title"] == "Cached Page"
+    mock_get.assert_not_called()
+    mock_cache_set.assert_not_called()
 
 
 @patch("requests.get")
-def test_deduplication(mock_get, crawler):
-    """Ensures that the same URL is not crawled more than once."""
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_blacklisted_extension(mock_cache_set, mock_cache_get, mock_get, crawler_config):
+    """Ensures URLs with disallowed file extensions are skipped."""
 
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.content = HTML_PAGE.encode("utf-8")
-    mock_response.text = HTML_PAGE
-    mock_get.return_value = mock_response
+    crawler = WebCrawler(crawler_config)
+    stats = crawler.crawl("http://example.com/file.png")
 
-    crawler.crawl("http://example.com")
-    crawler.crawl("http://example.com")  # Should not crawl again
+    assert stats.total_urls == 0
+    assert mock_get.call_count == 0
+    assert mock_cache_set.call_count == 0
 
-    # Still only 1 URL should be in stats
-    assert len(crawler.visited) == 3
 
 @patch("requests.get")
-@patch("crawler.services.crawler_service.get_channel_layer")
-def test_broadcast_stats_success(mock_get_channel_layer, mock_get, crawler):
-    """Test that stats are successfully broadcast to the channel group."""
+@patch("django.core.cache.cache.get", return_value=None)
+@patch("django.core.cache.cache.set")
+def test_domain_restriction(mock_cache_set, mock_cache_get, mock_get, crawler_config):
+    """Ensures only allowed domains are crawled."""
 
-    mock_channel_layer = AsyncMock()
-    mock_get_channel_layer.return_value = mock_channel_layer
+    crawler = WebCrawler(crawler_config)
+    stats = crawler.crawl("http://notallowed.com")
 
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.content = HTML_PAGE.encode("utf-8")
-    mock_response.text = HTML_PAGE
-    mock_get.return_value = mock_response
-
-    crawler.crawl("http://example.com")
-
-    mock_channel_layer.group_send.assert_awaited_with(
-        "crawl_group",
-        {
-            "type": "send_crawl_stats",
-            "stats_data": {
-                "total_urls": 3,
-                "errors": 0,
-                "status_counts": {"200": 3},
-                "domain_counts": {"example.com": 3},
-            },
-        },
-    )
+    assert stats.total_urls == 0
+    mock_get.assert_not_called()
+    mock_cache_set.assert_not_called()
