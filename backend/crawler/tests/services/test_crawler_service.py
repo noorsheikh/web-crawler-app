@@ -11,6 +11,9 @@ crawler_service.py. The tests cover edge cases including:
 - Domain and file extension filtering
 
 Test methods use mocking to simulate HTTP responses with varying HTML content.
+
+Usage:
+    pytest crawler/tests/services/test_crawler_service.py
 """
 
 from unittest.mock import patch, Mock
