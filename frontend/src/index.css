@@ -36,3 +36,13 @@
 .p-chips .p-chips-multiple-container input {
   font-size: 12px;
 }
+
+.p-datatable .p-datatable-thead > tr > th,
+.p-datatable .p-datatable-tbody > tr > td {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.p-datatable .p-column-title {
+  font-size: 12px;
+}

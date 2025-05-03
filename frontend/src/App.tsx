@@ -12,10 +12,10 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
 type CrawlRecord = {
-  totalPages: number;
-  totalErrors: number;
-  totalSize: number;
-  avgResponseTime: number;
+  title: string;
+  url: string;
+  status: number;
+  size: number;
 };
 
 type CrawlStats = {
@@ -23,6 +23,7 @@ type CrawlStats = {
   errors: number;
   statusCount: { code: string; total: number }[];
   domainsCount: { domain: string; total: number }[];
+  records: CrawlRecord[];
 };
 
 const LandingPage: React.FC = () => {
@@ -35,13 +36,7 @@ const LandingPage: React.FC = () => {
     ".js",
     ".css",
   ]);
-  const [records, setRecords] = useState<CrawlRecord[]>([]);
-  const [stats, setStats] = useState<CrawlStats>({
-    totalPages: 0,
-    totalErrors: 0,
-    totalSize: 0,
-    avgResponseTime: 0,
-  });
+  const [stats, setStats] = useState<CrawlStats | undefined>();
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -97,12 +92,9 @@ const LandingPage: React.FC = () => {
               total: data?.domain_counts[domain],
             })
           ),
+          records: data?.results,
         };
         setStats(stats);
-        // if (data.type === "record") {
-        //   setRecords((prev) => [...prev, data.record]);
-        // } else if (data.type === "stats") {
-        // }
       };
     } catch (err) {
       console.error("Failed to start crawl:", err);
@@ -166,7 +158,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="flex-none">
               <Button
-                icon={<i className="pi pi-search" />}
+                icon={<i className="pi pi-search text-white" />}
                 className="border-round-3xl border-noround-left border-left-none border-1 h-3rem bg-red-800 border-gray-700"
                 onClick={startCrawl}
               />
@@ -213,14 +205,45 @@ const LandingPage: React.FC = () => {
         <div className="col-8">
           <div className="grid">
             <div className="col-6">
-              <Card title="Scanned URLs" className="text-center">
-                <p className="text-2xl font-semibold">{stats.urls}</p>
+              <Card title="Scanned URLs" className="text-left">
+                <p className="text-5xl font-semibold m-0">{stats?.urls}</p>
               </Card>
             </div>
             <div className="col-6">
-              <Card title="Errors" className="text-center">
-                <p className="text-2xl font-semibold">{stats.errors}</p>
+              <Card title="Errors" className="text-left">
+                <p className="text-5xl font-semibold m-0">{stats?.errors}</p>
               </Card>
+            </div>
+            <div className="col-12">
+              <div className="rounded-xl">
+                <DataTable
+                  value={stats?.records}
+                  paginator
+                  rows={30}
+                  showGridlines
+                  stripedRows
+                  totalRecords={stats?.records?.length || 0}
+                  sortMode="multiple"
+                  // size="small"
+                  emptyMessage="Scan a URL to see the results"
+                  responsiveLayout="scroll"
+                >
+                  <Column
+                    field="title"
+                    header="Page Title"
+                    sortable
+                    style={{ wordBreak: "break-word" }}
+                  />
+                  <Column
+                    field="url"
+                    header="URL"
+                    sortable
+                    style={{ wordBreak: "break-word" }}
+                  />
+                  <Column field="status" header="Code" sortable />
+                  <Column field="size" header="Size" sortable />
+                </DataTable>
+              </div>
             </div>
           </div>
         </div>
@@ -251,26 +274,6 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* {records.length > 0 && (
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="text-xl font-semibold mb-4">Crawl Results</h3>
-            <DataTable
-              value={records}
-              paginator
-              rows={10}
-              responsiveLayout="scroll"
-            >
-              <Column
-                field="url"
-                header="URL"
-                style={{ wordBreak: "break-word" }}
-              />
-              <Column field="status" header="Status" />
-              <Column field="response_time_ms" header="Response Time (ms)" />
-            </DataTable>
-          </div>
-        )} */}
     </div>
   );
 };
