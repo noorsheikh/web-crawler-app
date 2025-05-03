@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class CrawlerConsumer(AsyncWebsocketConsumer):
   async def connect(self):
-    self.group_name = "crawler_group"
+    self.group_name = "crawl_group"
     await self.channel_layer.group_add(self.group_name, self.channel_name)
     await self.accept()
     await self.send(text_data=json.dumps({

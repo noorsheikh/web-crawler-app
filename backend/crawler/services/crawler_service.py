@@ -29,8 +29,8 @@ from urllib.parse import urlparse, urljoin
 from collections import deque, defaultdict
 from bs4 import BeautifulSoup
 import requests
-import asyncio
 from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 class CrawlerConfig:
@@ -196,7 +196,7 @@ class WebCrawler:
                 )
 
                 # Live broadcast stats to client.
-                asyncio.run(self.broadcast_stats())
+                async_to_sync(self.broadcast_stats)()
 
                 if depth < self.config.max_depth and response.status_code == 200:
                     for link in soup.find_all("a", href=True):
@@ -206,7 +206,7 @@ class WebCrawler:
             except Exception:
                 self.stats.record(current_url, 0, 0, "ERROR")
                 # Live broadcast stats to client.
-                asyncio.run(self.broadcast_stats)
+                async_to_sync(self.broadcast_stats)()
 
         return self.stats
 
@@ -222,8 +222,8 @@ class WebCrawler:
                 "stats_data": {
                     "total_urls": self.stats.total_urls,
                     "errors": self.stats.errors,
-                    "status_counts": dict(self.stats.status_code_counts),
-                    "domain_counts": dict(self.stats.domain_counts),
+                    "status_counts": {str(k): v for k, v in self.stats.status_code_counts.items()},
+                    "domain_counts": {str(k): v for k, v in self.stats.domain_counts.items()},
                 },
             },
         )
