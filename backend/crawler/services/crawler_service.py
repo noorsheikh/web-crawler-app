@@ -305,6 +305,7 @@ class WebCrawler:
                     "errors": self.stats.errors,
                     "status_counts": {str(k): v for k, v in self.stats.status_code_counts.items()},
                     "domain_counts": {str(k): v for k, v in self.stats.domain_counts.items()},
+                    "results": self.stats.results,
                 },
             },
         )
