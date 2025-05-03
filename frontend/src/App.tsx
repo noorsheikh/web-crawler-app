@@ -250,7 +250,7 @@ const LandingPage: React.FC = () => {
         <div className="col-4">
           <div className="grid">
             <div className="col-12">
-              <Card title="Status Code Statistics" className="text-center">
+              <Card title="Status Code Statistics" className="text-left">
                 <DataTable
                   value={stats?.statusCount}
                   emptyMessage="Scan a URL to see the results"
@@ -261,7 +261,7 @@ const LandingPage: React.FC = () => {
               </Card>
             </div>
             <div className="col-12">
-              <Card title="Per Domain URLs Statistics" className="text-center">
+              <Card title="Per Domain URLs Statistics" className="text-left">
                 <DataTable
                   value={stats?.domainsCount}
                   emptyMessage="Scan a URL to see the results"
