@@ -25,6 +25,7 @@ Returns a `CrawlStats` object with metadata about each visited page.
 """
 
 import mimetypes
+import logging
 from urllib.parse import urlparse, urljoin
 from collections import deque, defaultdict
 from bs4 import BeautifulSoup
@@ -35,6 +36,8 @@ from django.core.cache import cache
 import hashlib
 
 REDIS_TTL = 60 * 60 * 24 # 24 hours
+
+logger = logging.getLogger("crawler")
 
 
 class CrawlerConfig:
@@ -175,11 +178,20 @@ class WebCrawler:
             CrawlStats: Object containing crawl statistics and results.
         """
 
+        logger.info(f"Starting crawl at: {start_url}")
+
         queue = deque([(start_url, 0)])
 
         while queue:
             current_url, depth = queue.popleft()
-            if current_url in self.visited or depth > self.config.max_depth:
+            logger.debug(f"Dequeued URL: {current_url} at depth: {depth}")
+
+            if current_url in self.visited:
+                logger.debug(f"Skipping already visited URL: {current_url}")
+                continue
+
+            if depth > self.config.max_depth:
+                logger.debug(f"Skipping {current_url} due to depth limit.")
                 continue
 
             # Cache key: hashed for length safety.
@@ -188,6 +200,8 @@ class WebCrawler:
             # Check if url crawl result is alrady cached in Redis.
             cached_data = cache.get(cache_key)
             if cached_data:
+                logger.info(f"Cache hit for URL: {current_url}")
+
                 # Reuse cached data
                 self.stats.record(
                     current_url,
@@ -199,21 +213,33 @@ class WebCrawler:
                 # Live broadcast stats to client.
                 async_to_sync(self.broadcast_stats)()
                 continue
+            else:
+                logger.debug(f"Cache miss for URL: {current_url}")
 
             if not self.config.is_allowed_domain(
                 current_url
-            ) and self.config.is_blacklisted(current_url):
+            ):
+                logger.warning(f"Blocked by domain policy: {current_url}")
+                continue
+
+            if self.config.is_blacklisted(current_url):
+                logger.warning(f"Blocked by blacklist policy: {current_url}")
                 continue
 
             self.visited.add(current_url)
 
             try:
+                logger.info(f"Fetching URL: {current_url}")
+
                 response = requests.get(current_url, timeout=10)
                 content_length = len(response.content)
                 soup = BeautifulSoup(response.text, "html.parser")
                 title_tag = soup.find("title")
                 title = title_tag.get_text(strip=True) if title_tag else ""
 
+                logger.info(
+                    f"Fetched {current_url} - Status: {response.status_code}, Size: {content_length}, Title: {title}"
+                )
                 self.stats.record(
                     current_url, response.status_code, content_length, title
                 )
@@ -228,6 +254,7 @@ class WebCrawler:
                     },
                     timeout=REDIS_TTL,
                 )
+                logger.debug(f"Cached URL: {current_url} with TTL {REDIS_TTL} seconds")
 
                 # Live broadcast stats to client.
                 async_to_sync(self.broadcast_stats)()
@@ -237,11 +264,14 @@ class WebCrawler:
                         href = urljoin(current_url, link["href"])
                         if href.startswith("http"):
                             queue.append((href, depth + 1))
+                            logger.debug(f"Enqueued link: {href} at depth {depth + 1}")
             except Exception:
+                logger.exception(f"Error fetching URL: {current_url} - {str(e)}")
                 self.stats.record(current_url, 0, 0, "ERROR")
                 # Live broadcast stats to client.
                 async_to_sync(self.broadcast_stats)()
 
+        logger.info(f"Crawl completed. Total URLs visited: {self.stats.total_urls}")
         return self.stats
 
     async def broadcast_stats(self):
@@ -262,8 +292,10 @@ class WebCrawler:
 
         channel_layer = get_channel_layer()
         if channel_layer is None:
+            logger.warning("Channel layer not available. Skipping broadcast.")
             return
 
+        logger.debug("Broadcasting crawl stats to WebSocket clients.")
         await channel_layer.group_send(
             "crawl_group",
             {

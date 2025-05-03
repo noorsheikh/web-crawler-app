@@ -98,9 +98,14 @@ LOGGING = {
             "class": "logging.StreamHandler",
         },
     },
+    "django": {
+        "handlers": ["console"],
+        "level": "DEBUG",
+        "propagate": True,
+    },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": "DEBUG",
     },
 }
 
@@ -111,7 +116,8 @@ CACHES = {
         "LOCATION": f"redis://{env('REDIS_HOST')}:{env('REDIS_PORT')}/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        },
+        "KEY_PREFIX": "crawler",
     }
 }
 
