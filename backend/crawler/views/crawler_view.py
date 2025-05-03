@@ -25,7 +25,3 @@ class CrawlerViewSet(ViewSet):
         thread.start()
 
         return Response({"message": "Crawl started."}, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=["get"], url_path="list")
-    def get(self, request):
-        return Response({"message": "Hello there"})
