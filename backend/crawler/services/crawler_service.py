@@ -211,6 +211,21 @@ class WebCrawler:
         return self.stats
 
     async def broadcast_stats(self):
+        """Asynchronously broadcasts the current crawl statistics to all WebSocket clients in the 'crawl_group'.
+
+        This method uses Django Channels to send a message to a channel group named 'crawl_group'. The message
+        contains the following crawl statistics:
+
+        - total_urls: Total number of URLs processed during the crawl.
+        - errors: Number of URLs that resulted in errors.
+        - status_counts: A dictionary mapping HTTP status codes to their frequency.
+        - domain_counts: A dictionary mapping domain names to the number of times they were encountered.
+
+        Notes:
+            - If the channel layer is not configured or unavailable, the method exits silently.
+            - All dictionary keys are converted to strings to ensure JSON serialization compatibility.
+        """
+
         channel_layer = get_channel_layer()
         if channel_layer is None:
             return
@@ -227,12 +242,3 @@ class WebCrawler:
                 },
             },
         )
-
-if __name__ == "__main__":
-    config = CrawlerConfig(2, ['https://www.specular.ai/', 'https://sst.dev/'], ['.jpeg', '.css'])
-    crawler = WebCrawler(config)
-    stats = crawler.crawl("https://www.specular.ai/")
-    print(stats.domain_counts)
-    print(stats.errors)
-    print(stats.status_code_counts)
-    print(stats.results)

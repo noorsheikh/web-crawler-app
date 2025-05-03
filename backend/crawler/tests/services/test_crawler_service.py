@@ -16,7 +16,7 @@ Usage:
     pytest crawler/tests/services/test_crawler_service.py
 """
 
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, AsyncMock
 import pytest
 import requests
 from crawler.services.crawler_service import WebCrawler, CrawlerConfig
@@ -173,3 +173,32 @@ def test_deduplication(mock_get, crawler):
 
     # Still only 1 URL should be in stats
     assert len(crawler.visited) == 3
+
+@patch("requests.get")
+@patch("crawler.services.crawler_service.get_channel_layer")
+def test_broadcast_stats_success(mock_get_channel_layer, mock_get, crawler):
+    """Test that stats are successfully broadcast to the channel group."""
+
+    mock_channel_layer = AsyncMock()
+    mock_get_channel_layer.return_value = mock_channel_layer
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.content = HTML_PAGE.encode("utf-8")
+    mock_response.text = HTML_PAGE
+    mock_get.return_value = mock_response
+
+    crawler.crawl("http://example.com")
+
+    mock_channel_layer.group_send.assert_awaited_with(
+        "crawl_group",
+        {
+            "type": "send_crawl_stats",
+            "stats_data": {
+                "total_urls": 3,
+                "errors": 0,
+                "status_counts": {"200": 3},
+                "domain_counts": {"example.com": 3},
+            },
+        },
+    )
