@@ -44,9 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     "rest_framework",
     "channels",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -120,6 +122,11 @@ CACHES = {
         "KEY_PREFIX": "crawler",
     }
 }
+
+# Configure CORS Allowed Origins
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
 
 
 # Internationalization
