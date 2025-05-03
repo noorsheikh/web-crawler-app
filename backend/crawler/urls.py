@@ -18,7 +18,7 @@ Including another URLconf
 from django.urls import path, include
 from rest_framework import routers
 from .views import crawler_view
-from .consumers.crawler_consumers import CrawlerConsumer
+from .consumers.crawler_consumer import CrawlerConsumer
 
 router = routers.DefaultRouter()
 router.register(r"crawler", crawler_view.CrawlerViewSet, basename="crawler")
