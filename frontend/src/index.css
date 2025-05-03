@@ -8,3 +8,31 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.p-chips .p-chips-multiple-container {
+  width: 100%;
+  border-width: 1px;
+  border-radius: 5px;
+  border-color: var(--p-gray-800) !important;
+}
+
+.p-chips .p-chips-multiple-container .p-chips-token {
+  padding: 0.25rem 0.75rem;
+}
+
+.p-chips .p-chips-multiple-container .p-chips-token .p-chips-token-label {
+  font-size: 0.8rem;
+}
+
+.p-chips .p-chips-multiple-container .p-chips-token .p-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.p-chips .p-chips-multiple-container input::placeholder {
+  font-size: 12px;
+}
+
+.p-chips .p-chips-multiple-container input {
+  font-size: 12px;
+}
