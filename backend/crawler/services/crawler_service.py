@@ -32,8 +32,6 @@ from bs4 import BeautifulSoup
 import requests
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from django.core.cache import cache
-import hashlib
 
 REDIS_TTL = 60 * 60 * 24 # 24 hours
 
@@ -194,28 +192,6 @@ class WebCrawler:
                 logger.debug(f"Skipping {current_url} due to depth limit.")
                 continue
 
-            # Cache key: hashed for length safety.
-            cache_key = f"crawl:{hashlib.sha256(current_url.encode()).hexdigest()}"
-
-            # Check if url crawl result is alrady cached in Redis.
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                logger.info(f"Cache hit for URL: {current_url}")
-
-                # Reuse cached data
-                self.stats.record(
-                    current_url,
-                    cached_data["status"],
-                    cached_data["size"],
-                    cached_data["title"],
-                )
-                self.visited.add(current_url)
-                # Live broadcast stats to client.
-                async_to_sync(self.broadcast_stats)()
-                continue
-            else:
-                logger.debug(f"Cache miss for URL: {current_url}")
-
             if not self.config.is_allowed_domain(
                 current_url
             ):
@@ -243,18 +219,6 @@ class WebCrawler:
                 self.stats.record(
                     current_url, response.status_code, content_length, title
                 )
-
-                # Cache newly crawled url.
-                cache.set(
-                    cache_key,
-                    {
-                        "status": response.status_code,
-                        "size": content_length,
-                        "title": title,
-                    },
-                    timeout=REDIS_TTL,
-                )
-                logger.debug(f"Cached URL: {current_url} with TTL {REDIS_TTL} seconds")
 
                 # Live broadcast stats to client.
                 async_to_sync(self.broadcast_stats)()
