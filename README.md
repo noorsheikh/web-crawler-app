@@ -14,6 +14,8 @@ This project is a full-stack web crawler that allows users to:
 
 The backend is built with Django + Django REST Framework + Channels, while the frontend is built with React, TypeScript, and PrimeReact. The entire application is dockerized for easy local development and testing.
 
+[Demo Link](https://www.loom.com/share/47e02fb7b61441d09b31a75c20aae478?sid=f93e3956-d7d9-46c2-91a9-07369cba8542)
+
 ---
 
 ## ⚙️ Technologies Used
