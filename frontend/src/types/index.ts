@@ -5,11 +5,15 @@ export type CrawlRecord = {
   size: number;
 };
 
+export type StatusCount = { code: string; total: number };
+
+export type DomainCount = { domain: string; total: number };
+
 export type CrawlStats = {
   urls: number;
   errors: number;
-  statusCount: { code: string; total: number }[];
-  domainsCount: { domain: string; total: number }[];
+  statusCount: StatusCount[];
+  domainsCount: DomainCount[];
   records: CrawlRecord[];
 };
 

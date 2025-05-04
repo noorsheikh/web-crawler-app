@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Card } from "primereact/card";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
 import { CrawlStats } from "./types";
 import HeaderHero from "./components/HeaderHero";
 import SearchBar from "./components/SearchBar";
 import ResultsTable from "./components/ResultsTable";
+import CrawlStatsCards from "./components/CrawlStatsCards";
+import StatusCodesStats from "./components/StatusCodesStats";
+import PerDomainUrlStats from "./components/PerDomainUrlStats";
 
 const LandingPage: React.FC = () => {
   const [stats, setStats] = useState<CrawlStats | undefined>();
@@ -64,16 +64,10 @@ const LandingPage: React.FC = () => {
       <div className="grid w-9 mx-auto text-center">
         <div className="col-8">
           <div className="grid">
-            <div className="col-6">
-              <Card title="Scanned URLs" className="text-left">
-                <p className="text-5xl font-semibold m-0">{stats?.urls}</p>
-              </Card>
-            </div>
-            <div className="col-6">
-              <Card title="Errors" className="text-left">
-                <p className="text-5xl font-semibold m-0">{stats?.errors}</p>
-              </Card>
-            </div>
+            <CrawlStatsCards
+              urls={stats?.urls || 0}
+              errors={stats?.errors || 0}
+            />
             <div className="col-12">
               <ResultsTable data={stats?.records || []} />
             </div>
@@ -82,26 +76,14 @@ const LandingPage: React.FC = () => {
         <div className="col-4">
           <div className="grid">
             <div className="col-12">
-              <Card title="Status Code Statistics" className="text-left">
-                <DataTable
-                  value={stats?.statusCount}
-                  emptyMessage="Scan a URL to see the results"
-                >
-                  <Column field="code" header="Code" />
-                  <Column field="total" header="Total" />
-                </DataTable>
-              </Card>
+              {stats?.statusCount && (
+                <StatusCodesStats statusCount={stats?.statusCount} />
+              )}
             </div>
             <div className="col-12">
-              <Card title="Per Domain URLs Statistics" className="text-left">
-                <DataTable
-                  value={stats?.domainsCount}
-                  emptyMessage="Scan a URL to see the results"
-                >
-                  <Column field="domain" header="Domain" />
-                  <Column field="total" header="Total" />
-                </DataTable>
-              </Card>
+              {stats?.domainsCount && (
+                <PerDomainUrlStats domainsCount={stats?.domainsCount} />
+              )}
             </div>
           </div>
         </div>
